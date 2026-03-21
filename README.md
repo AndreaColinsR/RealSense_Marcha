@@ -2,7 +2,7 @@
 
 ## Requerimientos
 1. Python 3.9/3.10/3.11
-2. `librealsense2` (Módulo para controlar las cámaras de Intel. Repositorio fuente [aquí](https://github.com/realsenseai/librealsense)
+2. `librealsense2` (Módulo para controlar las cámaras de Intel. Repositorio fuente [aquí](https://github.com/realsenseai/librealsense))
 3. `cv2`
 4. `numpy`
 5. `mediapipe`
