@@ -73,6 +73,7 @@ pip install numpy opencv-python mediapipe matplotlib notebook pyrealsense2
 # Grabar desde dos cámaras simultáneamente
 
 1. Seguir los pasos 1 hasta 3 de la sección anterior
-2. Editar el nombre del video y opcionalmente otros parámetros
-3. Presionar :fast_forward: en la barra superior
-4. El código detectará las cámaras conectadas y grabará un video por 5 segundos o hasta que el usuario presione la tecla **q** en el teclado.
+2. Abrir el Notebook RealSense_RecordVideo.ipynb
+3. Editar el nombre del video y opcionalmente otros parámetros
+4. Presionar :fast_forward: en la barra superior
+5. El código detectará las cámaras conectadas y grabará un video por 5 segundos o hasta que el usuario presione la tecla **q** en el teclado.
