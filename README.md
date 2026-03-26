@@ -7,6 +7,7 @@
 4. `numpy`
 5. `mediapipe`
 6. `matplotlib`
+7. `scipy`
    
    Las versiones de Python son un requisito dado por librealsense2 y mediapipe para ser instaladas usando pip.
    Si se usa una versión más reciente de Python, librealsense2 debe ser construido desde el repositorio fuente. Mediapipe solo puede ser usado hasta Python 3.12
@@ -56,7 +57,7 @@ Activamos el ambiente virtual
 ### 4. Instalar todas las dependencias en el ambiente virtual nombradas arriba, más Jupyter Notebook
 
 ```bash
-pip install numpy opencv-python mediapipe matplotlib notebook pyrealsense2
+pip install numpy opencv-python mediapipe matplotlib notebook pyrealsense2 scipy
 ```
 
 3. Si se usa un ambiente virtual, entonces antes de ejecutar el código se debe activar el ambiente virtual
