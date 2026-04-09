@@ -57,7 +57,12 @@ Activamos el ambiente virtual
 ### 4. Instalar todas las dependencias en el ambiente virtual nombradas arriba, más Jupyter Notebook
 
 ```bash
-pip install numpy opencv-python mediapipe matplotlib notebook pyrealsense2 scipy
+pip install numpy opencv-python matplotlib notebook pyrealsense2 scipy
+```
+
+Para instalar mediapipe, instalar la siguiente versión
+```bash
+pip install mediapipe==0.10.9
 ```
 
 3. Si se usa un ambiente virtual, entonces antes de ejecutar el código se debe activar el ambiente virtual
