@@ -35,8 +35,8 @@ T=npz['T']
 
 #create body keypoints detector objects.
 #INFO: Created TensorFlow Lite XNNPACK delegate for CPU.
-pose0 = mp_pose.Pose(min_detection_confidence=0.8, min_tracking_confidence=0.8,model_complexity=2)
-pose1 = mp_pose.Pose(min_detection_confidence=0.8, min_tracking_confidence=0.8,model_complexity=2)
+pose0 = mp_pose.Pose(min_detection_confidence=0.8, min_tracking_confidence=0.9,model_complexity=2)
+pose1 = mp_pose.Pose(min_detection_confidence=0.8, min_tracking_confidence=0.9,model_complexity=2)
 
 #containers for detected keypoints for each camera. These are filled at each frame.
 #This will run you into memory issue if you run the program without stop

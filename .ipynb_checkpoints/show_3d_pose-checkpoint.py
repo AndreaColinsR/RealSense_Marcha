@@ -203,7 +203,7 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
         counter=counter+1
 
 if __name__ == '__main__':
-    Nvideo = '8'
+    Nvideo = '7'
     capF = cv.VideoCapture(r'.\Videos\pcte'+Nvideo+'A.avi')
     capS = cv.VideoCapture(r'.\Videos\pcte'+Nvideo+'B.avi')
     
