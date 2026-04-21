@@ -83,3 +83,11 @@ pip install mediapipe==0.10.9
 3. Editar el nombre del video y opcionalmente otros parámetros
 4. Presionar :fast_forward: en la barra superior
 5. El código detectará las cámaras conectadas y grabará un video por 5 segundos o hasta que el usuario presione la tecla **q** en el teclado.
+
+# Calibrar dos cámaras para reconstrucción 3D
+1. Posicionar un tablero de ajedrez de 9x7 cuadrados en la región donde caminarán los pacientes. El tablero completo debe ser visible desde las dos cámaras, como en las figuras de ejemplo.
+<img width="50%" alt="Screenshot 2026-04-21 125415" src="https://github.com/user-attachments/assets/63ed56d9-c3f3-4d52-8002-86bfbb536d85" />
+<img width="50%" alt="Screenshot 2026-04-21 125436" src="https://github.com/user-attachments/assets/abee5e0b-19e8-4ed4-a172-c7c81c0dde4b" />
+2. Grabar un video desde las dos cámaras simultáneamente. Ver la sección anterior de instrucciones.
+3. Abrir el Notebook Calibrate_cameras.ipynb
+
