@@ -7,8 +7,8 @@ from utils import DLT, write_keypoints_to_disk
 
 
 #this will load the sample videos if no camera ID is given
-Nvideo = '7'
-Calib_n = '7'
+Nvideo = '12'
+Calib_n = '11'
 
 Video_nameA = '.\Videos\pcte'+Nvideo+'A.avi'
 Video_nameB = '.\Videos\pcte'+Nvideo+'B.avi'
@@ -16,8 +16,8 @@ input_stream1 = Video_nameA
 input_stream2 = Video_nameB
 print(input_stream1)
 
-pose_keypoints = [16, 14, 12, 11, 13, 15, 24, 23, 25, 26, 27, 28]
-
+pose_keypoints = [16, 14, 12, 11, 13, 15, 24, 23, 25, 26, 27, 28, 32, 31]
+Npoints = len(pose_keypoints)
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_pose = mp.solutions.pose
@@ -85,12 +85,12 @@ while(cap0.isOpened()):
                 pxl_y = int(round(pxl_y))
                 cv.circle(frame0,(pxl_x, pxl_y), 3, (0,0,255), -1) #add keypoint detection points into figure
                 kpts = [pxl_x, pxl_y]
-                frame0_keypoints.append(kpts) ## clearly the problem is around the next line 
+                frame0_keypoints.append(kpts) 
         else:
             #if no keypoints are found, simply fill the frame data with [-1,-1] for each kpt
-            frame0_keypoints = [[-1, -1]]*len(pose_keypoints)
+            frame0_keypoints = [[-1, -1]]*Npoints
                 
-        #this will keep keypoints of this frame in memory
+        #this will keep the keypoints of this frame in memory
         kpts_cam0.append(frame0_keypoints)
 
         ## For the second camera
@@ -114,9 +114,9 @@ while(cap0.isOpened()):
     
         #update keypoints container
         kpts_cam1.append(frame1_keypoints)
-        #print(frame1_keypoints)
         
-        #calculate 3d position
+        
+        ##calculate 3d position
         frame_p3ds = []
         for uv1, uv2 in zip(frame0_keypoints, frame1_keypoints):
             if uv1[0] == -1 or uv2[0] == -1:
@@ -125,7 +125,7 @@ while(cap0.isOpened()):
                 _p3d = DLT(P0, P1, uv1, uv2) #calculate 3d position of keypoint
             frame_p3ds.append(_p3d)
                 
-        frame_p3ds = np.array(frame_p3ds).reshape((12, 3))
+        frame_p3ds = np.array(frame_p3ds).reshape((Npoints, 3))
         kpts_3d.append(frame_p3ds)
         # uncomment these if you want to see the full keypoints detections
         mp_drawing.draw_landmarks(frame0, results0.pose_landmarks, mp_pose.POSE_CONNECTIONS,

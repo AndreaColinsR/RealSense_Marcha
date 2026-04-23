@@ -6,7 +6,8 @@ from scipy.io import savemat
 plt.style.use('seaborn-v0_8')
 
 
-pose_keypoints = np.array([16, 14, 12, 11, 13, 15, 24, 23, 25, 26, 27, 28])
+pose_keypoints = np.array([16, 14, 12, 11, 13, 15, 24, 23, 25, 26, 27, 28, 32, 31])
+Npoints = len(pose_keypoints)
 
 def read_keypoints(filename):
     fin = open(filename, 'r')
@@ -58,8 +59,10 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
     arml = [[0, 2], [2, 4]]
     legr = [[6, 8], [8, 10]]
     legl = [[7, 9], [9, 11]]
-    body = [torso, arml, armr, legr, legl]
-    colors = ['red', 'blue', 'green', 'black', 'orange']
+    anklel = [[10, 12]]
+    ankler = [[11, 13]]
+    body = [torso, arml, armr, legr, legl , anklel,ankler]
+    colors = ['red', 'blue', 'green', 'black', 'orange','cyan','magenta']
 
 
     counter=1
@@ -90,27 +93,56 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
 
     l_hip=np.zeros((Nframes,))
     r_hip=np.zeros((Nframes,))
+
+    l_arm=np.zeros((Nframes,))
+    r_arm=np.zeros((Nframes,))
+    
+    l_ankle=np.zeros((Nframes,))
+    r_ankle=np.zeros((Nframes,))
     
     for i in np.arange(0,Nframes):
-            
+        # ankle 
+        l_ankle[i]=angle_between(p3ds[i,12,:]-p3ds[i,10,:], p3ds[i,8,:]-p3ds[i,10,:])-np.pi/2
+        r_ankle[i]=angle_between(p3ds[i,13,:]-p3ds[i,11,:], p3ds[i,9,:]-p3ds[i,11,:])-np.pi/2
+        
+        # knee    
         l_knee[i]=angle_between(p3ds[i,6,:]-p3ds[i,8,:], p3ds[i,8,:]-p3ds[i,10,:])
         r_knee[i]=angle_between(p3ds[i,7,:]-p3ds[i,9,:], p3ds[i,9,:]-p3ds[i,11,:])
-
+        # hip
         l_hip[i]=angle_between(p3ds[i,0,:]-p3ds[i,6,:], p3ds[i,6,:]-p3ds[i,8,:])
         r_hip[i]=angle_between(p3ds[i,1,:]-p3ds[i,7,:], p3ds[i,7,:]-p3ds[i,9,:])
+        #shoulder
+        l_arm[i]=angle_between(p3ds[i,1,:]-p3ds[i,7,:], p3ds[i,1,:]-p3ds[i,3,:])
+        r_arm[i]=angle_between(p3ds[i,0,:]-p3ds[i,6,:], p3ds[i,0,:]-p3ds[i,2,:])
 
     fig0 = plt.figure()
-    plt.subplot(211)
-    plt.plot(t[1:len(t)],r_hip[1:len(t)]*180/np.pi,'r',label='Rodilla derecha')
-    plt.plot(t[1:len(t)],l_hip[1:len(t)]*180/np.pi,'k',label='Rodilla izquierda')
-    
-    plt.subplot(212)
-    plt.plot(t[1:len(t)],r_knee[1:len(t)]*180/np.pi,'r',label='Rodilla derecha')
-    plt.plot(t[1:len(t)],l_knee[1:len(t)]*180/np.pi,'k',label='Rodilla izquierda')
+    plt.subplot(411)
+    plt.plot(t[1:len(t)],r_hip[1:len(t)]*180/np.pi,'r',label='Cadera derecha')
+    plt.plot(t[1:len(t)],l_hip[1:len(t)]*180/np.pi,'k',label='Cadera izquierda')
+    plt.legend(loc="upper left")
     plt.xlabel('Tiempo [s]')
     plt.ylabel('Angulo [o]')
+    
+    plt.subplot(412)
+    plt.plot(t[1:len(t)],r_knee[1:len(t)]*180/np.pi,'r',label='Rodilla derecha')
+    plt.plot(t[1:len(t)],l_knee[1:len(t)]*180/np.pi,'k',label='Rodilla izquierda')
     plt.legend(loc="upper left")
     plt.ylim(0, 150)
+    plt.xlabel('Tiempo [s]')
+    plt.ylabel('Angulo [o]')
+
+    plt.subplot(413)
+    plt.plot(t[1:len(t)],r_arm[1:len(t)]*180/np.pi,'r',label='Hombro derecho')
+    plt.plot(t[1:len(t)],l_arm[1:len(t)]*180/np.pi,'k',label='Hombro izquierdo')
+    plt.legend(loc="upper left")
+
+    plt.subplot(414)
+    plt.plot(t[1:len(t)],r_ankle[1:len(t)]*180/np.pi,'r',label='Tobillo derecho')
+    plt.plot(t[1:len(t)],l_ankle[1:len(t)]*180/np.pi,'k',label='Tobillo izquierdo')
+    plt.legend(loc="upper left")
+    
+    plt.xlabel('Tiempo [s]')
+    plt.ylabel('Angulo [o]')
 
     
     #plt.plot(t,p3ds[:,10,0],'b')
@@ -158,7 +190,7 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
                 ax2.plot(xs = [kpts3d[_c[0],0], kpts3d[_c[1],0]], ys = [kpts3d[_c[0],1], kpts3d[_c[1],1]], zs = [kpts3d[_c[0],2], kpts3d[_c[1],2]], linewidth = 4, c = part_color)
 
         #uncomment these if you want scatter plot of keypoints and their indices.
-        for i in range(12):
+        for i in range(Npoints):
             ax.scatter(xs = kpts3d[i:i+1,0], ys = kpts3d[i:i+1,1], zs = kpts3d[i:i+1,2])
             #ax2.text(kpts3d[i,0], kpts3d[i,1], kpts3d[i,2], str(i))
             ax2.scatter(xs = kpts3d[i:i+1,0], ys = kpts3d[i:i+1,1], zs = kpts3d[i:i+1,2])
@@ -191,7 +223,7 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
         plt.savefig(figname, bbox_inches='tight')
         plt.pause(0.005)
         if framenum==1:
-            plt.pause(50)
+            plt.pause(0.05)
         ax.cla()
         ax2.cla()
         axF.cla()
@@ -200,7 +232,7 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
         counter=counter+1
 
 if __name__ == '__main__':
-    Nvideo = '7'
+    Nvideo = '12'
     capF = cv.VideoCapture(r'.\Videos\pcte'+Nvideo+'A.avi')
     capS = cv.VideoCapture(r'.\Videos\pcte'+Nvideo+'B.avi')
     
