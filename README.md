@@ -86,8 +86,43 @@ pip install mediapipe==0.10.9
 
 # Calibrar dos cámaras para reconstrucción 3D
 1. Posicionar un tablero de ajedrez de 9x7 cuadrados en la región donde caminarán los pacientes. El tablero completo debe ser visible desde las dos cámaras, como en las figuras de ejemplo.
+   
 <img width="50%" alt="Screenshot 2026-04-21 125415" src="https://github.com/user-attachments/assets/63ed56d9-c3f3-4d52-8002-86bfbb536d85" />
 <img width="50%" alt="Screenshot 2026-04-21 125436" src="https://github.com/user-attachments/assets/abee5e0b-19e8-4ed4-a172-c7c81c0dde4b" />
+
+
 2. Grabar un video desde las dos cámaras simultáneamente. Ver la sección anterior de instrucciones.
 3. Abrir el Notebook Calibrate_cameras.ipynb
+4. Presionar :fast_forward: en la barra superior
+5. Al terminar, el notebook mostrará las esquinas del tablero detectadas en la última imagen y reconstruidas de la calibración de las cámaras. Es de vital importancia verificar que exista una correspondencia entre los puntos detectados en ambas cámaras.
+6. Finalmente, la última celda del notebook mostrará la reconstrucción en 3D de los puntos del tablero. Es de vital importancia verificar que los puntos correspondan a la figura en 3 dimensiones. Por ejemplo, los puntos deben yacer en un plano formando líneas paralelas que marcan las filas del tablero.
 
+#  Detectar los puntos del esqueleto y reconstruir en 3D
+
+1. Abrir una ventana de command prompt ( por ej., escribiendo cmd en la barra de búsqueda de Windows).
+2. Activar el ambiente virtual
+
+```bash
+.\Marcha_RealSense\Scripts\Activate.ps1
+```
+3. Navegar hasta la carpeta donde está el código y las grabaciones.
+
+```bash
+cd .\Documentos\Marcha
+```
+4. Verificar que el archivo bodypose3d.py contenga el nombre del video que se quiere analizar y el archivo de calibración que se desea ocupar para este video.
+5. Ejecutar el archivo bodypose3d.py
+    
+```bash
+   python bodypose3d.py
+```
+
+6. Una vez finalizado sin errores, se mostrará por pantalla el mensaje "All done". Por favor note que este código asume que existe una subcarpeta Tracking donde se guardarán los resultados.
+
+# Mostrar resultados de reconstrucción en 3D.
+1. Verificar que el archivo show_3d_pose.py contenga el nombre del video que se quiere mostrar
+2. En la misma ventana de command prompt (con el ambiente virtual activo) ejecutar el archivo.
+
+```bash
+   python show_3d_pose.py
+```
