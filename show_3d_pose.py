@@ -64,7 +64,6 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
 
     counter=1
     tmp=p3ds.shape
-    print(p3ds.shape)
     Nframes=tmp[0]
     t=t[0:Nframes]
 
@@ -84,7 +83,7 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
     ## commpute left knee angle
     #6-8 vs 8-10
     
-    tmp=p3ds.shape
+    tmp = p3ds.shape
     Nframes=tmp[0]
     l_knee=np.zeros((Nframes,))
     r_knee=np.zeros((Nframes,))
@@ -95,7 +94,6 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
     for i in np.arange(0,Nframes):
             
         l_knee[i]=angle_between(p3ds[i,6,:]-p3ds[i,8,:], p3ds[i,8,:]-p3ds[i,10,:])
-        print(t[i],l_knee[i])
         r_knee[i]=angle_between(p3ds[i,7,:]-p3ds[i,9,:], p3ds[i,9,:]-p3ds[i,11,:])
 
         l_hip[i]=angle_between(p3ds[i,0,:]-p3ds[i,6,:], p3ds[i,6,:]-p3ds[i,8,:])
@@ -175,8 +173,7 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
         ax2.set_xlim3d([Mins[0], Maxs[0]])
         ax2.set_ylim3d([Mins[1], Maxs[1]])
         ax2.set_zlim3d([Mins[2], Maxs[2]])
-        ax2.view_init(elev=-38, azim=-91,roll=40)
-        #ax2.view_init(elev=-0, azim=0,roll=-110)
+        ax2.view_init(elev=-83, azim=-86,roll=-6)
         #ax.set_xticks([])
         #ax.set_yticks([])
         #ax.set_zticks([])
@@ -188,13 +185,13 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
         
-        ax.view_init(elev=-163, azim=0,roll=-90)
+        ax.view_init(elev=0, azim=180,roll=88)
         plt.title(framenum)
         figname='.\Frames\Fig_'+str(counter)+'.png'
         plt.savefig(figname, bbox_inches='tight')
         plt.pause(0.005)
         if framenum==1:
-            plt.pause(0.05)
+            plt.pause(50)
         ax.cla()
         ax2.cla()
         axF.cla()
