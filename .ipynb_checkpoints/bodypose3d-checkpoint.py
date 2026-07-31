@@ -7,8 +7,8 @@ from utils import DLT, write_keypoints_to_disk
 
 
 #this will load the sample videos if no camera ID is given
-Nvideo = '12'
-Calib_n = '11'
+Nvideo = '16'
+Calib_n = '12'
 
 Video_nameA = '.\Videos\pcte'+Nvideo+'A.avi'
 Video_nameB = '.\Videos\pcte'+Nvideo+'B.avi'
@@ -26,6 +26,12 @@ mp_pose = mp.solutions.pose
 Calib_video = '.\Calibration_Videos_RS\Calibration_parameters_'+Calib_n+'.npz'
 npz = np.load(Calib_video)
 
+
+# Define the codec and create VideoWriter object
+fourcc1 = cv.VideoWriter_fourcc(*'XVID')
+Width = 1280*2
+Height = 720
+out1 = cv.VideoWriter('pcte'+str(Nvideo)+'.avi', fourcc1, 30, (Width, Height))
 
 P0=npz['P1']
 P1=npz['P2']
@@ -136,12 +142,14 @@ while(cap0.isOpened()):
         frame_cat = cv.hconcat([frame0,frame1])
         half = cv.resize(frame_cat, (0, 0), fx = 0.5, fy = 0.5)
         cv.imshow('cam0', half)
-      
+        out1.write(frame_cat)
+        
         if cv.waitKey(1) & 0xFF == ord('q'):
             break #27 is ESC key.
     
 for cap in caps:
     cap.release()
+    out1.release()
 cv.destroyAllWindows()
 
 #this will create keypoints file in current working folder
