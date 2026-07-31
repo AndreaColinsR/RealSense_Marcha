@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import DLT
+from utils import DLT, kalman_acceleration_smooth, postprocess_3d_keypoints
 import cv2 as cv
-from scipy.io import savemat
+from scipy.signal import find_peaks
+#from mpl_toolkits.mplot3d import Axes3D
 plt.style.use('seaborn-v0_8')
 
 
@@ -50,8 +51,38 @@ def z_rotation(vector,theta):
     """Rotates 3-D vector around z-axis"""
     R = np.array([[np.cos(theta), -np.sin(theta),0],[np.sin(theta), np.cos(theta),0],[0,0,1]])
     return np.dot(R,vector)
+
+def define_steps(r_knee,t):
+    peaks, properties = find_peaks(r_knee*180/np.pi, height=50, distance=25, prominence=1)
+    peaks = np.insert(peaks, 0, 0)
+
+    start_step=0
+    steps_start_end=[]
+    t_steps=[]
     
-def visualize_3d(p3ds,p3dsf,capF,capS,t):
+    for i in range(len(peaks)-2):
+        for end_step in range(peaks[i+1],peaks[i+2]):
+            # if the angle of the knee is less than 15 degrees 
+            # and the time between the peaks is less than 2 seconds, then we have a step
+            if (r_knee[end_step]*180/np.pi)<15:
+                if (t[peaks[i+1]]-t[start_step])<=2:
+                    steps_start_end.append([start_step,end_step+1])
+                    t_steps.append(t[end_step]-t[start_step])
+                    #this_step = r_knee[start_step:end_step+1]*180/np.pi
+                start_step=end_step+1
+                break
+
+    return steps_start_end,t_steps
+
+def get_steps(steps_start,angles):
+    angle_steps=[]
+    for i in range(len(steps_start)):
+        this_step = angles[steps_start[i][0]:steps_start[i][1]+1]*180/np.pi
+        angle_steps.append(this_step)
+    
+    return angle_steps
+    
+def visualize_3d(p3ds,capF,capS,t):
 
     """Now visualize in 3D"""
     torso = [[0, 1] , [1, 7], [7, 6], [6, 0]]
@@ -74,17 +105,17 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
     p3ds[0,:,:]=p3ds[1,:,:]
 
     tmp_nan=[];
-    for i in np.arange(0,Nframes):
+    show_frame=[];
+    for i in range(Nframes):
         if np.sum(p3ds[i,0,:])>-3.1 and np.sum(p3ds[i,0,:])<-2.9:
             tmp_nan.append(i)
+        else:
+            show_frame.append(i)
             
     p3ds=np.delete(p3ds,tmp_nan, axis=0)
     t = np.delete(t, tmp_nan)
     
     p3ds = p3ds-p3ds[0,10,:]
-    
-    ## commpute left knee angle
-    #6-8 vs 8-10
     
     tmp = p3ds.shape
     Nframes=tmp[0]
@@ -99,8 +130,12 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
     
     l_ankle=np.zeros((Nframes,))
     r_ankle=np.zeros((Nframes,))
+
+    for x in range(0,3):
+        for kpoint in range(0,Npoints):
+            p3ds[:,kpoint,x]=kalman_acceleration_smooth(p3ds[:,kpoint,x], process_noise=1e-2, measurement_noise=1e-4)
     
-    for i in np.arange(0,Nframes):
+    for i in range(Nframes):
         # ankle 
         l_ankle[i]=angle_between(p3ds[i,12,:]-p3ds[i,10,:], p3ds[i,8,:]-p3ds[i,10,:])-np.pi/2
         r_ankle[i]=angle_between(p3ds[i,13,:]-p3ds[i,11,:], p3ds[i,9,:]-p3ds[i,11,:])-np.pi/2
@@ -111,10 +146,73 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
         # hip
         l_hip[i]=angle_between(p3ds[i,0,:]-p3ds[i,6,:], p3ds[i,6,:]-p3ds[i,8,:])
         r_hip[i]=angle_between(p3ds[i,1,:]-p3ds[i,7,:], p3ds[i,7,:]-p3ds[i,9,:])
+        
         #shoulder
         l_arm[i]=angle_between(p3ds[i,1,:]-p3ds[i,7,:], p3ds[i,1,:]-p3ds[i,3,:])
         r_arm[i]=angle_between(p3ds[i,0,:]-p3ds[i,6,:], p3ds[i,0,:]-p3ds[i,2,:])
+    ###### Detect steps
+   
+    start_steps,t_steps=define_steps(r_knee,t)
+    steps_r_knee=get_steps(start_steps,r_knee)
+    steps_r_hip=get_steps(start_steps,r_hip)
+    steps_r_ankle=get_steps(start_steps,r_ankle)
 
+    #start_steps,t_steps=define_steps(l_knee,t)
+    steps_l_knee=get_steps(start_steps,l_knee)
+    steps_l_hip=get_steps(start_steps,l_hip)
+    steps_l_ankle=get_steps(start_steps,l_ankle)
+    
+    Nsteps=len(steps_r_knee)
+    fig0 = plt.figure()
+
+    
+    for i in range(Nsteps):
+       
+        this_color=i/(Nsteps+3)
+        x_percent = np.linspace(0, 100, len(steps_r_knee[i]))
+        
+        plt.subplot(231)
+        plt.plot(x_percent, steps_r_knee[i],color=[this_color,this_color,this_color])
+        plt.xlabel('Porcentaje de marcha [%]')
+        plt.ylabel('Angulo rodilla derecha [o]')
+
+        plt.subplot(234)
+        plt.plot(x_percent, steps_l_knee[i],color=[this_color,this_color,this_color])
+        plt.xlabel('Porcentaje de marcha [%]')
+        plt.ylabel('Angulo rodilla izquierda [o]')
+
+        plt.subplot(232)
+        plt.plot(x_percent, steps_r_hip[i],color=[this_color,this_color,this_color])
+        plt.xlabel('Porcentaje de marcha [%]')
+        plt.ylabel('Angulo cadera derecha [o]')
+
+        plt.subplot(235)
+        plt.plot(x_percent, steps_l_hip[i],color=[this_color,this_color,this_color])
+        plt.xlabel('Porcentaje de marcha [%]')
+        plt.ylabel('Angulo cadera izquierda [o]')
+
+        plt.subplot(233)
+        plt.plot(x_percent, steps_r_ankle[i],color=[this_color,this_color,this_color])
+        plt.xlabel('Porcentaje de marcha [%]')
+        plt.ylabel('Angulo tobillo derecha [o]')
+
+        plt.subplot(236)
+        plt.plot(x_percent, steps_l_ankle[i],color=[this_color,this_color,this_color])
+        plt.xlabel('Porcentaje de marcha [%]')
+        plt.ylabel('Angulo tobillo izquierda [o]')
+
+    fig1 = plt.figure()
+    for i in range(Nsteps):
+        
+        plt.subplot(233)
+        plt.plot(1,t_steps[i],marker='o',color=[0.5,0.5,0.5])
+        
+    #plt.subplot(223)
+    t_steps2=np.array(t_steps)
+    print("Promedio duracion de paso: ", np.mean(t_steps2))
+    plt.errorbar(1,np.mean(t_steps2),np.std(t_steps2),fmt='o-',color='k')
+    plt.ylabel('Tiempo de cada paso [s]') 
+    
     fig0 = plt.figure()
     plt.subplot(411)
     plt.plot(t[1:len(t)],r_hip[1:len(t)]*180/np.pi,'r',label='Cadera derecha')
@@ -126,6 +224,8 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
     plt.subplot(412)
     plt.plot(t[1:len(t)],r_knee[1:len(t)]*180/np.pi,'r',label='Rodilla derecha')
     plt.plot(t[1:len(t)],l_knee[1:len(t)]*180/np.pi,'k',label='Rodilla izquierda')
+    #plt.plot(t[peaks], r_knee[peaks]*180/np.pi,marker='o')
+    
     plt.legend(loc="upper left")
     plt.ylim(0, 150)
     plt.xlabel('Tiempo [s]')
@@ -150,10 +250,6 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
     #plt.plot(t,p3ds[:,10,2],'r')
     plt.pause(1)
     
-
-
-
-    from mpl_toolkits.mplot3d import Axes3D
     
     fig = plt.figure()
     axF = fig.add_subplot(221)
@@ -171,17 +267,22 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
     Mins = np.min(np.min(p3ds,0),0)-100
     Maxs = np.max(np.max(p3ds,0),0)+100
 
+    
+    current_frame = 0 # frames of the video
     for framenum, kpts3d in enumerate(p3ds):
-        ret, frameF = capF.read()
-        ret, frameS = capS.read()
-        if framenum%2 == 0: continue #skip every 2nd frame
+        framenum
+        while current_frame<show_frame[framenum]:
+            ret, frameF = capF.read()
+            ret, frameS = capS.read()
+            current_frame += 1
+        
+        #if current_frame not in show_frame: 
+            #continue #skip every 2nd frame and frames that were not detected correctly by mediapipe
+        
         axF.imshow(cv.cvtColor(frameF, cv.COLOR_BGR2RGB))
         axF.axis('off')
         axS.imshow(cv.cvtColor(frameS, cv.COLOR_BGR2RGB))
         axS.axis('off')
-
-        ax.plot(np.linspace(0,new_z[0]),np.linspace(0,new_z[1]),np.linspace(0,new_z[2]))
-        #ax.plot(np.linspace(0,new_vect[0]),np.linspace(0,new_vect[1]),np.linspace(0,new_vect[2]))
 
 
         for bodypart, part_color in zip(body, colors):
@@ -189,23 +290,20 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
                 ax.plot(xs = [kpts3d[_c[0],0], kpts3d[_c[1],0]], ys = [kpts3d[_c[0],1], kpts3d[_c[1],1]], zs = [kpts3d[_c[0],2], kpts3d[_c[1],2]], linewidth = 4, c = part_color)
                 ax2.plot(xs = [kpts3d[_c[0],0], kpts3d[_c[1],0]], ys = [kpts3d[_c[0],1], kpts3d[_c[1],1]], zs = [kpts3d[_c[0],2], kpts3d[_c[1],2]], linewidth = 4, c = part_color)
 
-        #uncomment these if you want scatter plot of keypoints and their indices.
+        # plot keypoints
         for i in range(Npoints):
             ax.scatter(xs = kpts3d[i:i+1,0], ys = kpts3d[i:i+1,1], zs = kpts3d[i:i+1,2])
-            #ax2.text(kpts3d[i,0], kpts3d[i,1], kpts3d[i,2], str(i))
             ax2.scatter(xs = kpts3d[i:i+1,0], ys = kpts3d[i:i+1,1], zs = kpts3d[i:i+1,2])
         
         #for _c in connections:
            # ax.plot(xs = [p3dsf[_c[0],0], p3dsf[_c[1],0]], ys = [p3dsf[_c[0],1], p3dsf[_c[1],1]], zs = [p3dsf[_c[0],2], p3dsf[_c[1],2]], c = 'red')
            # ax2.plot(xs = [p3dsf[_c[0],0], p3dsf[_c[1],0]], ys = [p3dsf[_c[0],1], p3dsf[_c[1],1]], zs = [p3dsf[_c[0],2], p3dsf[_c[1],2]], c = 'red')
 
-        #ax.set_axis_off()
-        #ax2.set_axis_off()
         ####################### right plot (front)
         ax2.set_xlim3d([Mins[0], Maxs[0]])
         ax2.set_ylim3d([Mins[1], Maxs[1]])
         ax2.set_zlim3d([Mins[2], Maxs[2]])
-        ax2.view_init(elev=-83, azim=-86,roll=-6)
+        ax2.view_init(elev=0, azim=6,roll=-90)
         #ax.set_xticks([])
         #ax.set_yticks([])
         #ax.set_zticks([])
@@ -216,14 +314,14 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
+        ax.view_init(elev=90, azim=-110,roll=150)
         
-        ax.view_init(elev=0, azim=180,roll=88)
         plt.title(framenum)
         figname='.\Frames\Fig_'+str(counter)+'.png'
         plt.savefig(figname, bbox_inches='tight')
         plt.pause(0.005)
-        if framenum==1:
-            plt.pause(0.05)
+        if framenum==show_frame[0]:
+            plt.pause(10)
         ax.cla()
         ax2.cla()
         axF.cla()
@@ -232,7 +330,7 @@ def visualize_3d(p3ds,p3dsf,capF,capS,t):
         counter=counter+1
 
 if __name__ == '__main__':
-    Nvideo = '12'
+    Nvideo = '18'
     capF = cv.VideoCapture(r'.\Videos\pcte'+Nvideo+'A.avi')
     capS = cv.VideoCapture(r'.\Videos\pcte'+Nvideo+'B.avi')
     
@@ -242,10 +340,10 @@ if __name__ == '__main__':
     npz = np.load(r'.\Videos\pcte'+Nvideo+'_t.npz')
     t = npz['t']
     p3ds = read_keypoints('.\Tracking\kpts_3d_'+Nvideo+'.dat')
-    p3dsf = read_keypoints('.\Tracking\kpts_3d_'+Nvideo+'.dat')
+    #p3dsf = read_keypoints('.\Tracking\kpts_3d_'+Nvideo+'.dat')
     mdic = {"body_pose": p3ds,"t":t}
-    savemat(".\pose_3d_video_"+Nvideo+".mat", mdic)
-    p3ds
-    visualize_3d(p3ds,p3dsf,capF,capS,t)
+    #savemat(".\pose_3d_video_"+Nvideo+".mat", mdic)
+    
+    visualize_3d(p3ds,capF,capS,t)
     capF.release() 
     capS.release()
