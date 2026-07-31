@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from filterpy.kalman import KalmanFilter,rts_smoother
+from scipy.signal import find_peaks
 
 
 def interpolate_zeros(series,value=0):
@@ -381,3 +382,152 @@ def postprocess_3d_keypoints(kpts_3d, process_noise=1e-2, measurement_noise=1e-2
         kpts_3d[:, marker, :] = traj
 
     return kpts_3d.tolist()
+
+
+def _mad_outlier_mask(x, thresh=3.5):
+    """Return boolean mask of non-outliers using median absolute deviation."""
+    x = np.asarray(x)
+    med = np.median(x)
+    mad = np.median(np.abs(x - med))
+    if mad == 0:
+        return np.ones_like(x, dtype=bool)
+    modified_z = 0.6745 * (x - med) / mad
+    return np.abs(modified_z) < thresh
+
+
+def define_steps_middle(r_knee, t,
+                  min_peak_height=40,     # deg, minimum flexion to count as a swing peak
+                  min_step_time=0.4,      # s, reject steps shorter than this
+                  max_step_time=2.5,      # s, reject steps longer than this
+                  angle_threshold=15,     # deg, sanity band around the expected event
+                  confirm_samples=3,      # samples velocity must stay >=0 after crossing
+                  outlier_mad_thresh=4, # MAD threshold to flag non-step segments (e.g. turns)
+                  exclude_windows=None):  # optional list of (t_start, t_end) to force-exclude
+    """
+    Detect gait cycles ("steps") from a knee flexion angle signal.
+
+    Returns
+    -------
+    steps_start_end : list of [start_idx, end_idx]
+    t_steps : list of step durations (s)
+    """
+
+    angle_deg = r_knee * 180 / np.pi
+    vel_deg = np.gradient(angle_deg, t)
+
+    dt = np.median(np.diff(t))
+    fs = 1 / dt
+    min_distance = max(1, int(min_step_time * fs))
+
+    peaks, _ = find_peaks(angle_deg, height=min_peak_height,
+                           distance=min_distance, prominence=5)
+    if len(peaks) < 2:
+        return [], []
+
+    # --- 1. find candidate gait events (extension->flexion reversal) between peaks ---
+    events = []
+    for i in range(len(peaks) - 1):
+        w0, w1 = peaks[i], peaks[i + 1]
+        found = None
+        for idx in range(w0 + 1, w1):
+            if vel_deg[idx - 1] < 0 and vel_deg[idx] >= 0:
+                # debounce: velocity must stay non-negative for a few samples
+                window_end = min(idx + confirm_samples, len(vel_deg))
+                if np.mean(vel_deg[idx:window_end] >= 0) >= 0.8:
+                    if angle_deg[idx] < angle_threshold + 10:
+                        found = idx
+                        break
+        if found is None:
+            candidate = w0 + np.argmin(angle_deg[w0:w1])
+            if angle_deg[candidate] < angle_threshold:
+                found = candidate
+        if found is not None:
+            events.append(found)
+
+    if len(events) < 2:
+        return [], []
+
+    # --- 2. build steps only between two consecutive DETECTED events ---
+    # this naturally drops the incomplete leading segment (recording start -> first event)
+    # and the incomplete trailing segment (last event -> recording end)
+    steps_start_end, t_steps, roms = [], [], []
+    for i in range(len(events) - 1):
+        start_step, end_step = events[i], events[i + 1]
+        duration = t[end_step] - t[start_step]
+
+        if not (min_step_time <= duration <= max_step_time):
+            continue  # too short/long to be a normal step
+
+        if exclude_windows:
+            ts, te = t[start_step], t[end_step]
+            if any(not (te < ws or ts > we) for ws, we in exclude_windows):
+                continue  # overlaps a known non-step segment (e.g., turn-around)
+
+        steps_start_end.append([start_step, end_step + 1])
+        t_steps.append(duration)
+        roms.append(np.max(angle_deg[start_step:end_step + 1]))
+
+    # --- 3. automatic outlier rejection (catches turn-arounds / bad segments) ---
+    if len(t_steps) >= 4:  # need enough steps for meaningful statistics
+        keep = _mad_outlier_mask(t_steps, outlier_mad_thresh) & \
+               _mad_outlier_mask(roms, outlier_mad_thresh)
+        steps_start_end = [s for s, k in zip(steps_start_end, keep) if k]
+        t_steps = [d for d, k in zip(t_steps, keep) if k]
+
+    return steps_start_end, t_steps
+
+def define_steps(r_knee, t,
+                  min_peak_height=50,     # deg, minimum knee flexion to count as a swing peak
+                  min_step_time=0.4,      # s, reject steps shorter than this
+                  max_step_time=2.0,      # s, reject steps longer than this
+                  angle_threshold=15):    # deg, sanity-check band around the expected event
+
+    angle_deg = r_knee * 180 / np.pi
+    vel_deg = np.gradient(angle_deg, t)   # angular velocity, deg/s
+
+    dt = np.median(np.diff(t))
+    fs = 1 / dt
+    min_distance = max(1, int(min_step_time * fs))
+
+    peaks, _ = find_peaks(angle_deg, height=min_peak_height,
+                           distance=min_distance, prominence=5)
+
+    if len(peaks) < 2:
+        return [], []
+
+    if peaks[0] != 0:
+        peaks = np.insert(peaks, 0, 0)
+
+    steps_start_end, t_steps = [], []
+    start_step = 0
+
+    for i in range(len(peaks) - 1):
+        w0, w1 = peaks[i], peaks[i + 1]
+
+        # look for the point after the flexion peak where the knee
+        # stops extending and begins to flex again (vel: - -> +)
+        end_step = None
+        for idx in range(w0 + 1, w1):
+            if vel_deg[idx - 1] < 0 and vel_deg[idx] >= 0:
+                # candidate local minimum of knee angle
+                if angle_deg[idx] < angle_threshold + 10:  # loose sanity band
+                    end_step = idx
+                    break
+
+        if end_step is None:
+            # fallback: no clean velocity zero-crossing found,
+            # use the minimum-angle sample in the window instead
+            candidate = w0 + np.argmin(angle_deg[w0:w1])
+            if angle_deg[candidate] < angle_threshold:
+                end_step = candidate
+            else:
+                continue
+
+        duration = t[end_step] - t[start_step]
+        if min_step_time <= duration <= max_step_time:
+            steps_start_end.append([start_step, end_step + 1])
+            t_steps.append(duration)
+
+        start_step = end_step + 1
+
+    return steps_start_end, t_steps
