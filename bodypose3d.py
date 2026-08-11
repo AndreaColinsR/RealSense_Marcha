@@ -2,16 +2,17 @@ import cv2 as cv
 import mediapipe as mp
 import numpy as np
 import sys
-from utils import DLT, write_keypoints_to_disk, postprocess_3d_keypoints
+from utils import DLT, write_keypoints_to_disk, transform_to_custom_frame
 #add here if you need more keypoints
 
 
 #this will load the sample videos if no camera ID is given
-Nvideo = '18'
-Calib_n = '16'
+Nvideo = '20'
+Date = '09_07_2026'
+Calib_n = '17'
 
-Video_nameA = './Videos/pcte'+Nvideo+'A.avi'
-Video_nameB = './Videos/pcte'+Nvideo+'B.avi'
+Video_nameA = './Videos/' + Date + '/pcte' + Nvideo + 'A.avi'
+Video_nameB = './Videos/' + Date + '/pcte' + Nvideo + 'B.avi'
 input_stream1 = Video_nameA
 input_stream2 = Video_nameB
 print(input_stream1)
@@ -26,6 +27,16 @@ mp_pose = mp.solutions.pose
 Calib_video = './Calibration_Videos_RS/Calibration_parameters_'+Calib_n+'.npz'
 npz = np.load(Calib_video)
 
+P0=npz['P1']
+P1=npz['P2']
+#R=npz['R']
+#T=npz['T']
+
+Floor_video = './Calibration_Videos_RS/Floor_parameters_'+'18'+'.npz'
+npz = np.load(Floor_video)
+Floor3D=npz['Floor3D']
+normal=npz['normal']
+centroid=npz['centroid']
 
 # Define the codec and create VideoWriter object
 fourcc1 = cv.VideoWriter_fourcc(*'XVID')
@@ -33,10 +44,7 @@ Width = 1280*2
 Height = 720
 out1 = cv.VideoWriter('pcte'+str(Nvideo)+'.avi', fourcc1, 30, (Width, Height))
 
-P0=npz['P1']
-P1=npz['P2']
-R=npz['R']
-T=npz['T']
+
 
 
 #create body keypoints detector objects.
@@ -129,6 +137,11 @@ while(cap0.isOpened()):
                 _p3d = [-1, -1, -1]
             else:
                 _p3d = DLT(P0, P1, uv1, uv2) #calculate 3d position of keypoint
+                ## rotate to coordinate world 
+                _p3d, R, origin = transform_to_custom_frame(
+                                            _p3d, centroid, normal,
+                                            x_from=Floor3D[0], x_to=Floor3D[3],
+                                            origin=Floor3D[0])
             frame_p3ds.append(_p3d)
                 
         frame_p3ds = np.array(frame_p3ds).reshape((Npoints, 3))
@@ -146,9 +159,6 @@ while(cap0.isOpened()):
         
         if cv.waitKey(1) & 0xFF == ord('q'):
             break #27 is ESC key.
-
-
-## post processing, apply kalman filter to smooth the 3d keypoints
 
 
 

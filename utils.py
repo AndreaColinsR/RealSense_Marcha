@@ -531,3 +531,73 @@ def define_steps(r_knee, t,
         start_step = end_step + 1
 
     return steps_start_end, t_steps
+
+def fit_plane(points):
+    """
+    Fit a plane to a set of 3D points via least-squares (SVD).
+
+    Returns
+    -------
+    centroid : (3,) a point on the plane (mean of the input points)
+    normal   : (3,) unit vector orthogonal to the best-fit plane
+    """
+    points = np.asarray(points, dtype=float)
+    centroid = points.mean(axis=0)
+    centered = points - centroid
+
+    # SVD of the centered points: the singular vector associated with the
+    # smallest singular value points in the direction of least variance
+    # in the point cloud -> that's the plane's normal
+    _, _, vh = np.linalg.svd(centered)
+    normal = vh[-1]
+    normal /= np.linalg.norm(normal)
+
+    return centroid, normal
+
+def transform_to_custom_frame(points, centroid, normal, x_from, x_to, origin=None):
+    """
+    Transform 3D points into a coordinate system where:
+      - X axis points from `x_from` to `x_to` (e.g. point 0 -> point 3)
+      - Y axis lies in-plane, orthogonal to X (Z cross X)
+      - Z axis is aligned to the plane's normal (orthogonal to the plane)
+
+    Parameters
+    ----------
+    points : (N, 3) array of points to transform
+    centroid, normal : output of fit_plane()
+    x_from, x_to : (3,) points defining the desired X direction
+        (e.g. D3Points[0], D3Points[3])
+    origin : (3,) or None
+        Point to use as the new origin. Defaults to `centroid`.
+
+    Returns
+    -------
+    transformed : (N, 3) points in the new frame
+    R : (3, 3) rotation matrix used (world_to_new)
+    origin : the origin of the new frame, in original coordinates
+    """
+    points = np.asarray(points, dtype=float)
+    origin = centroid if origin is None else np.asarray(origin, dtype=float)
+
+    z_dir = normal / np.linalg.norm(normal)
+
+    x_dir = np.asarray(x_to, dtype=float) - np.asarray(x_from, dtype=float)
+    # project out any component along the normal, so X is guaranteed to
+    # lie exactly in-plane (and thus exactly orthogonal to Z) even if
+    # points 0 and 3 don't sit perfectly on the fitted plane
+    x_dir = x_dir - np.dot(x_dir, z_dir) * z_dir
+    x_dir /= np.linalg.norm(x_dir)
+
+    y_dir = np.cross(z_dir, x_dir)
+    y_dir /= np.linalg.norm(y_dir)
+
+    R = np.array([x_dir, y_dir, z_dir])  # rows = new basis vectors in old coords
+    transformed = (points - origin) @ R.T
+
+    if transformed[2].mean() < 0:
+        # if the mean Z is negative, flip the Z axis so that the new frame
+        # is "above" the plane rather than "below" it
+        R[2] *= -1
+        transformed = (points - origin) @ R.T
+
+    return transformed, R, origin
