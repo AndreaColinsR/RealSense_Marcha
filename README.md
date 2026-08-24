@@ -8,6 +8,7 @@
 5. `mediapipe`
 6. `matplotlib`
 7. `scipy`
+8. `pyqt5`
    
    Las versiones de Python son un requisito dado por librealsense2 y mediapipe para ser instaladas usando pip.
    Si se usa una versión más reciente de Python, librealsense2 debe ser construido desde el repositorio fuente. Mediapipe solo puede ser usado hasta Python 3.12
